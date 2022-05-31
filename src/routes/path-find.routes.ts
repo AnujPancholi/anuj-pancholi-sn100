@@ -28,10 +28,17 @@ router.post(
     body(['start', 'end'], 'Not a valid point').isIn(Object.values(EPoint)),
   ),
   async (req, res) => {
-    const { start, end } = req.body;
-    const paths = await getPaths();
-    const path = findShortestPath(paths, start, end);
-    res.status(200).send(path);
+    try {
+      const { start, end } = req.body;
+      const paths = await getPaths();
+      const path = findShortestPath(paths, start, end);
+      return res.status(200).send(path);
+    } catch (e: any) {
+      console.error(e);
+      return res.status(500).send({
+        error: e.message,
+      });
+    }
   },
 );
 
@@ -41,9 +48,10 @@ const findShortestPath = (
   endNode: string,
 ) => {
   // track distances from the start node using a hash object
-  let distances: Record<string, number> = {};
-  distances[endNode] = Infinity;
-  distances = Object.assign(distances, paths[startNode]);
+  const distances: Record<string, number> = {};
+  for (const vertex in paths) {
+    distances[vertex] = vertex === startNode ? 0 : Infinity;
+  }
 
   // track paths using a hash object
   const parents: Record<string, string | null> = { [endNode]: null };
@@ -52,7 +60,7 @@ const findShortestPath = (
   }
 
   // collect visited nodes
-  const visited: string[] = [];
+  const visited: Set<string> = new Set<string>();
   // find the nearest node
   let node = shortestDistanceNode(distances, visited);
 
@@ -68,7 +76,7 @@ const findShortestPath = (
       const newdistance = distance + children[child];
       // if there's no recorded distance from the start node to the child node in the distances object
       // or if the recorded distance is shorter than the previously stored distance from the start node to the child node
-      if (!distances[child] || distances[child] > newdistance) {
+      if (distances[child] > newdistance) {
         // save the distance to the object
         distances[child] = newdistance;
         // record the path
@@ -76,7 +84,7 @@ const findShortestPath = (
       }
     }
     // move the current node to the visited set
-    visited.push(node);
+    visited.add(node);
     // move to the nearest neighbor node
     node = shortestDistanceNode(distances, visited);
   }
@@ -94,7 +102,7 @@ const findShortestPath = (
   //this is the shortest path
   const results = {
     distance: distances[endNode],
-    path: shortestPath,
+    path: distances[endNode] === Infinity ? [] : shortestPath,
   };
   // return the shortest path & the end node's distance from the start node
   return results;
@@ -102,7 +110,7 @@ const findShortestPath = (
 
 const shortestDistanceNode = (
   distances: Record<string, number>,
-  visited: string[],
+  visited: Set<string>,
 ) => {
   // create a default value for shortest
   let shortest: string | null = null;
@@ -115,7 +123,7 @@ const shortestDistanceNode = (
       shortest === null || distances[node] < distances[shortest];
 
     // and if the current node is in the unvisited set
-    if (currentIsShortest && !visited.includes(node)) {
+    if (currentIsShortest && !visited.has(node)) {
       // update shortest to be the current node
       shortest = node;
     }
