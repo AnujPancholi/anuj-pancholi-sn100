@@ -94,10 +94,9 @@ const findShortestPath = (
   const shortestPath = [endNode];
   let parent = parents[endNode];
   while (parent) {
-    shortestPath.push(parent);
+    shortestPath.unshift(parent);
     parent = parents[parent];
   }
-  shortestPath.reverse();
 
   //this is the shortest path
   const results = {
